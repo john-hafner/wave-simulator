@@ -34,10 +34,10 @@ new OrbitControls(camera, renderer.domElement);
 
 const world = {
   plane: {
-    width: 200,
+    width: 100,
     height: 100,
-    widthSegments: 150,
-    heightSegments: 100,
+    widthSegments: 1000,
+    heightSegments: 1000,
   },
 };
 
@@ -77,21 +77,33 @@ const randomValues = [];
 
 // Let there be light
 const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(0, 1, 1);
+light.position.set(0, 0, 1);
 scene.add(light);
 
 // Add a back light to illuminate the under side.
-const backLight = new THREE.DirectionalLight(0xffffff, 1);
-backLight.position.set(0, 0, -1);
-scene.add(backLight);
+// const backLight = new THREE.DirectionalLight(0xffffff, 1);
+// backLight.position.set(0, 0, -1);
+// scene.add(backLight);
+
+// Properties for the wave
+const wave = {
+  amplitude: 1.0,
+  k: 1.0,
+  w: 1.0,
+};
 
 // Setup a GUI to control the properties of the plane
 const gui = new dat.GUI();
-gui.addFolder('world');
-gui.add(world.plane, 'width', 1, 100).onChange(generatePlane);
-gui.add(world.plane, 'height', 1, 100).onChange(generatePlane);
-gui.add(world.plane, 'widthSegments', 1, 100).onChange(generatePlane);
-gui.add(world.plane, 'heightSegments', 1, 100).onChange(generatePlane);
+const waveFolder = gui.addFolder('Wave Properties');
+waveFolder.add(wave, 'amplitude', 0.1, 10);
+waveFolder.add(wave, 'k', 0.1, 100);
+waveFolder.add(wave, 'w', 0.1, 100);
+waveFolder.open();
+const worldFolder = gui.addFolder('world');
+worldFolder.add(world.plane, 'width', 1, 200).onChange(generatePlane);
+worldFolder.add(world.plane, 'height', 1, 200).onChange(generatePlane);
+worldFolder.add(world.plane, 'widthSegments', 1, 1000).onChange(generatePlane);
+worldFolder.add(world.plane, 'heightSegments', 1, 1000).onChange(generatePlane);
 
 /** Setup the plane initially, or when needing to update it. */
 function generatePlane() {
@@ -113,9 +125,9 @@ function generatePlane() {
         const y = array[i + 1];
         const z = array[i + 2];
 
-        array[i] = (x + Math.random() - 0.5) * 3;
-        array[i + 1] = (y + Math.random() - 0.5) * 3;
-        array[i + 2] = z + Math.random() - 0.5;
+        // array[i] = (x + Math.random() - 0.5) * 3;
+        // array[i + 1] = (y + Math.random() - 0.5) * 3;
+        // array[i + 2] = z + Math.random() - 0.5;
       }
 
       randomValues.push(Math.random() * Math.PI * 2);
@@ -155,74 +167,30 @@ function animate() {
     planeMesh.geometry.attributes.position;
 
   for (let i = 0; i < array.length; i += 3) {
-    // x
-    array[i] = originalPosition[i] + Math.cos(frame + randomValues[i]) * 0.003;
-
-    // y
-    array[i + 1] =
-      originalPosition[i + 1] + Math.sin(frame + randomValues[i]) * 0.003;
+    const x = array[i];
+    const y = array[i + 1];
+    const distance = Math.sqrt(x ** 2 + y ** 2);
+    const k = 1;
+    const w = 1;
+    const a = 1.0;
+    // z
+    array[i + 2] =
+      wave.amplitude * Math.sin(wave.k * distance - wave.w * frame);
   }
+  // for (let i = 0; i < array.length; i += 3) {
+  //   // x
+  //   array[i] = originalPosition[i] + Math.cos(frame + randomValues[i]) * 0.003;
+
+  //   // y
+  //   array[i + 1] =
+  //     originalPosition[i + 1] + Math.sin(frame + randomValues[i]) * 0.003;
+  // }
 
   planeMesh.geometry.attributes.position.needsUpdate = true;
 
   renderer.render(scene, camera);
-  raycaster.setFromCamera(mouse, camera);
-  const intersects = raycaster.intersectObject(planeMesh);
-
-  if (intersects.length > 0) {
-    // Setting the 'r' value of the color to 0.
-    //intersects[0].object.geometry.attributes.color.setX(0, 0);
-    const { color } = intersects[0].object.geometry.attributes;
-
-    // Vertex 1
-    color.setX(intersects[0].face.a, 0.1);
-    color.setY(intersects[0].face.a, 0.5); // x=red, y=green, z=blue
-    color.setZ(intersects[0].face.a, 1);
-    // Vertex 2
-    color.setX(intersects[0].face.b, 0.1);
-    color.setY(intersects[0].face.b, 0.5);
-    color.setZ(intersects[0].face.b, 1);
-
-    // Vertex 3
-    color.setX(intersects[0].face.c, 0.1);
-    color.setY(intersects[0].face.c, 0.5);
-    color.setZ(intersects[0].face.c, 1);
-
-    const initialColor = {
-      r: 0,
-      g: 0.19,
-      b: 0.4,
-    };
-
-    const hoverColor = {
-      r: 0.1,
-      g: 0.5,
-      b: 1,
-    };
-
-    gsap.to(hoverColor, {
-      r: initialColor.r,
-      g: initialColor.g,
-      b: initialColor.b,
-      duration: 1,
-      onUpdate: () => {
-        color.setX(intersects[0].face.a, hoverColor.r);
-        color.setY(intersects[0].face.a, hoverColor.g); // x=red, y=green, z=blue
-        color.setZ(intersects[0].face.a, hoverColor.b);
-        // Vertex 2
-        color.setX(intersects[0].face.b, hoverColor.r);
-        color.setY(intersects[0].face.b, hoverColor.g);
-        color.setZ(intersects[0].face.b, hoverColor.b);
-
-        // Vertex 3
-        color.setX(intersects[0].face.c, hoverColor.r);
-        color.setY(intersects[0].face.c, hoverColor.g);
-        color.setZ(intersects[0].face.c, hoverColor.b);
-      },
-    });
-
-    intersects[0].object.geometry.attributes.color.needsUpdate = true;
-  }
+  //raycaster.setFromCamera(mouse, camera);
+  //const intersects = raycaster.intersectObject(planeMesh);
 
   //plane.rotation.x += 0.01;
   //time += increment;
